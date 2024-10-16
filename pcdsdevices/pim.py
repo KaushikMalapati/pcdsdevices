@@ -376,8 +376,7 @@ class PPMPowerMeter(BaseInterface, Device):
     """
 
     tab_component_names = True
-
-    responsivity = Cpt(PytmcSignal, ':RES', io='io', kind='normal', doc='Responsivity in  V/W, unique for every power meter.')
+    responsivity = Cpt(PytmcSignal, ':RES', io='i', kind='normal', doc='Responsivity in  V/W, unique for every power meter.')
 
     background_voltage = Cpt(PytmcSignal, ':BACK:VOLT', io='io', kind='normal', doc='Background voltage value used to calculate pulse energy.')
 
