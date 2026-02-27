@@ -15,7 +15,7 @@ from ophyd.utils.errors import LimitError
 from ..epics_motor import (IMS, MMC100, PMC100, BeckhoffAxis, EpicsMotor,
                            EpicsMotorInterface, Motor, MotorDisabledError,
                            Newport, OffsetIMSWithPreset, OffsetMotor,
-                           PCDSMotorBase)
+                           PCDSMotorBase, SmarActBeckhoff)
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ def fake_motor(cls, name='test_motor'):
 
 @pytest.fixture(scope='function',
                 params=[EpicsMotorInterface, PCDSMotorBase, IMS, Newport,
-                        MMC100, PMC100, BeckhoffAxis])
+                        MMC100, PMC100, BeckhoffAxis, SmarActBeckhoff])
 def fake_epics_motor(request):
     """
     Test EpicsMotorInterface and subclasses
@@ -102,6 +102,14 @@ def fake_beckhoff(request):
     Test Beckhoff-specific overrides
     """
     return fake_motor(BeckhoffAxis, name=f'mot_{request.node.name}')
+
+
+@pytest.fixture(scope='function')
+def fake_smaract_beckhoff(request):
+    """
+    Test SmarActBeckhoff
+    """
+    return fake_motor(SmarActBeckhoff, name=f'mot_{request.node.name}')
 
 
 @pytest.fixture(scope='function')
@@ -543,7 +551,7 @@ def test_motion_error_filter(fake_epics_motor, caplog):
 
 
 @pytest.mark.parametrize("cls", [PCDSMotorBase, IMS, Newport, MMC100,
-                                 PMC100, BeckhoffAxis, EpicsMotor])
+                                 PMC100, BeckhoffAxis, SmarActBeckhoff, EpicsMotor])
 @pytest.mark.timeout(5)
 def test_disconnected_motors(cls):
     cls('MOTOR', name='motor')

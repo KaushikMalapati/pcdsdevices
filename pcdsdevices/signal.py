@@ -24,8 +24,9 @@ from typing import Any, Generator, Mapping, Optional, Union
 import numpy as np
 import ophyd
 from ophyd.device import Device
-from ophyd.signal import (DEFAULT_WRITE_TIMEOUT, DerivedSignal, EpicsSignal,
-                          EpicsSignalBase, EpicsSignalRO, Signal, SignalRO)
+from ophyd.signal import (DEFAULT_WRITE_TIMEOUT, AttributeSignal,
+                          DerivedSignal, EpicsSignal, EpicsSignalBase,
+                          EpicsSignalRO, Signal, SignalRO)
 from ophyd.sim import FakeEpicsSignal, FakeEpicsSignalRO, fake_device_cache
 from ophyd.status import Status
 from ophyd.utils import ReadOnlyError
@@ -39,7 +40,30 @@ from .utils import convert_unit
 logger = logging.getLogger(__name__)
 
 
-class PytmcSignal(EpicsSignalBase):
+def removePVKwargs(func, *args, **kwargs):
+    if 'write_pv' in kwargs:
+        kwargs.pop('write_pv')
+    if 'read_pv' in kwargs:
+        kwargs.pop('read_pv')
+    return func(*args, **kwargs)
+
+
+oldasinit = AttributeSignal.__init__
+
+
+def newasinit(*args, **kwargs):
+    removePVKwargs(oldasinit, *args, **kwargs)
+
+
+AttributeSignal.__init__ = newasinit
+
+
+class NoPVKwargs(type):
+    def __call__(cls, *args, **kwargs):
+        return removePVKwargs(super().__call__, *args, **kwargs)
+
+
+class PytmcSignal(EpicsSignalBase, metaclass=NoPVKwargs):
     """
     Class for a connection to a pytmc-generated EPICS record.
 
@@ -102,7 +126,7 @@ class PytmcSignalRO(PytmcSignal, EpicsSignalRO):
 
 
 # Make sure an acceptable fake class is set for PytmcSignal
-class FakePytmcSignal(FakeEpicsSignal):
+class FakePytmcSignal(FakeEpicsSignal, metaclass=NoPVKwargs):
     """A suitable fake class for PytmcSignal."""
     def __new__(cls, prefix, io=None, **kwargs):
         new_cls = select_pytmc_class(io=io, prefix=prefix,

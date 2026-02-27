@@ -15,7 +15,7 @@ from ophyd.device import Device
 from ophyd.device import FormattedComponent as FCpt
 from ophyd.epics_motor import EpicsMotor
 from ophyd.ophydobj import Kind
-from ophyd.signal import EpicsSignal, EpicsSignalRO, Signal
+from ophyd.signal import AttributeSignal, EpicsSignal, EpicsSignalRO, Signal
 from ophyd.status import DeviceStatus, MoveStatus, SubscriptionStatus
 from ophyd.status import wait as status_wait
 from ophyd.utils import LimitError
@@ -32,7 +32,9 @@ from .eps import EPS
 from .interface import FltMvInterface
 from .pseudopos import OffsetMotorBase, delay_class_factory
 from .registry import device_registry
-from .signal import EpicsSignalEditMD, EpicsSignalROEditMD, PytmcSignal
+from .signal import (EpicsSignalEditMD, EpicsSignalROEditMD,
+                     MultiDerivedSignalRO, PytmcSignal)
+from .type_hints import SignalToValue
 from .utils import get_status_float, get_status_value
 from .variety import set_metadata
 
@@ -1680,8 +1682,10 @@ class SmarAct(EpicsMotorInterface):
         self.motor_is_moving.long_name = 'Actively Moving'
         self.dial_position.long_name = 'Dial Position'
         self.direction_of_travel.long_name = 'Direction of Travel'
-        self.home_forward.long_name = 'Home Forward'
-        self.home_reverse.long_name = 'Home Backward'
+        if self.home_forward is not None:
+            self.home_forward.long_name = 'Home Forward'
+        if self.home_reverse is not None:
+            self.home_reverse.long_name = 'Home Backward'
         self.low_limit_switch.long_name = 'Low Limit Switch'
         self.high_limit_switch.long_name = 'High Limit Switch'
         self.high_limit_travel.long_name = 'High Limit Travel'
@@ -1784,6 +1788,89 @@ class SmarActPicoscale(SmarAct):
         self.pico_wmin.long_name = 'Working distance (min)'
 
 
+class SmarActBeckhoffOpenLoop(SmarActOpenLoop):
+    @property
+    def _unavailable(self):
+        return 0
+
+    step_voltage = UpCpt(cls=PytmcSignal, suffix=':PLC:nChanStepAmp', io='io')
+    step_freq = UpCpt(cls=PytmcSignal, suffix=':PLC:nChanStepFreq', io='io')
+    jog_fwd = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    jog_rev = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    total_step_count = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    jog_step_size = UpCpt(cls=PytmcSignal, suffix=':PLC:nChanStep', io='io')
+    step_clear_cmd = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    scan_move = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    channel_temp = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    module_temp = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+
+
+class SmarActBeckhoff(SmarAct, BeckhoffAxisEPS):
+    @property
+    def _unavailable(self):
+        return 0
+
+    @_unavailable.setter
+    def _unavailable(self, value):
+        return
+
+    open_loop = UpCpt(cls=SmarActBeckhoffOpenLoop)
+    pos_type = UpCpt(cls=PytmcSignal, suffix=':PLC:nPositionerType', io='io')
+
+    def get_calibration_needed(self, mds: MultiDerivedSignalRO, items: SignalToValue) -> bool:
+        return items[mds.signals[0]] ^ 1
+    needs_calib = UpCpt(cls=MultiDerivedSignalRO, suffix=None, attrs=['is_calibrated'], calculate_on_get=get_calibration_needed)
+    do_calib = UpCpt(cls=PytmcSignal, suffix=':PLC:bCalibrationCmd', io='io')
+    log_scale_offset = UpCpt(cls=PytmcSignal, suffix=':PLC:nLogicalScaleOfs', write_pv=None, io='io')
+    def_range_min = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), write_pv=None, kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs. Use soft limits.')
+    def_range_max = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs. Use soft limits.')
+    log_scale_inv = UpCpt(cls=PytmcSignal, suffix=':PLC:nLogicalScaleInv', write_pv=None, io='io')
+    dist_code_inv = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    channel_temp = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    module_temp = UpCpt(cls=AttributeSignal, suffix='_unavailable', add_prefix=(), kind='omitted', write_access=False, doc='Unavailable for EtherCAT SmarActs.')
+    channel_state_raw = UpCpt(cls=PytmcSignal, suffix=':PLC:chanState:nChannelStateRaw', io='i')
+
+    # not part of default smaract
+    step_egu = Cpt(PytmcSignal, ':PLC:nChanStepEgu', io='io', kind='omitted', doc='Step scale factor')
+    hold_time = Cpt(PytmcSignal, ':PLC:nHoldTime', io='io', kind='omitted', doc='Close loop hold time')
+    step_move_cmd = Cpt(PytmcSignal, ':PLC:bStepMoveCmd', io='io', kind='omitted', doc='Used to disable closed loop mode')
+    max_closeloop_freq = Cpt(PytmcSignal, ':PLC:nMaxCloseLoopFreq', io='io', kind='omitted', doc='Max closed loop frequency')
+    calib_opts = Cpt(PytmcSignal, ':PLC:nCalibrationOpt', io='io', kind='omitted', doc='Calibration options')
+    sensor_power_mode = Cpt(PytmcSignal, ':PLC:nSensorPowerMode', io='io', kind='omitted', doc='Sensor power mode')
+    refer_opt = Cpt(PytmcSignal, ':PLC:nReferencingOpt', io='io', kind='omitted', doc='Referencing options')
+    refer_type = Cpt(PytmcSignal, ':PLC:nReferenceType', io='i', kind='omitted', doc='Reference type')
+    safe_dir = Cpt(PytmcSignal, ':PLC:nSafeDir', io='io', kind='omitted', doc='Safe direction')
+    motor_load = Cpt(PytmcSignal, ':PLC:nMotorLoad', io='i', kind='omitted', doc='Motor load')
+    channel_type = Cpt(PytmcSignal, ':PLC:nChannelType', io='io', kind='omitted', doc='Channel type')
+
+    # Individual channel state bits
+    actively_moving = Cpt(PytmcSignal, ':PLC:chanState:bActivelyMoving', io='i', kind='omitted', doc='Actively moving')
+    closed_loop_active = Cpt(PytmcSignal, ':PLC:chanState:bClosedLoopActive', io='i', kind='omitted', doc='Closed loop active')
+    calibrating = Cpt(PytmcSignal, ':PLC:chanState:bCalibrating', io='i', kind='omitted', doc='Calibrating')
+    referencing = Cpt(PytmcSignal, ':PLC:chanState:bReferencing', io='i', kind='omitted', doc='Referencing')
+    move_delayed = Cpt(PytmcSignal, ':PLC:chanState:bMoveDelayed', io='i', kind='omitted', doc='Move delayed')
+    sensor_present = Cpt(PytmcSignal, ':PLC:chanState:bSensorPresent', io='i', kind='omitted', doc='Sensor present')
+    is_calibrated = Cpt(PytmcSignal, ':PLC:chanState:bIsCalibrated', io='i', kind='omitted', doc='Is calibrated')
+    is_referenced = Cpt(PytmcSignal, ':PLC:chanState:bIsReferenced', io='i', kind='omitted', doc='Is referenced')
+    endstop_reached = Cpt(PytmcSignal, ':PLC:chanState:bEndStopReached', io='i', kind='omitted', doc='End stop reached')
+    range_limit_reached = Cpt(PytmcSignal, ':PLC:chanState:bRangeLimitReached', io='i', kind='omitted', doc='Range limit reached')
+    following_limit_reached = Cpt(PytmcSignal, ':PLC:chanState:bFollowingLimitReached', io='i', kind='omitted', doc='Following limit reached')
+    movement_failed = Cpt(PytmcSignal, ':PLC:chanState:bMovementFailed', io='i', kind='omitted', doc='Movement failed')
+    is_streaming = Cpt(PytmcSignal, ':PLC:chanState:bIsStreaming', io='i', kind='omitted', doc='Is streaming')
+    positioner_overload = Cpt(PytmcSignal, ':PLC:chanState:bPositionerOverload', io='i', kind='omitted', doc='Positioner overload')
+    over_temp = Cpt(PytmcSignal, ':PLC:chanState:bOverTemperature', io='i', kind='omitted', doc='Over temperature')
+    reference_mark = Cpt(PytmcSignal, ':PLC:chanState:bReferenceMark', io='i', kind='omitted', doc='Reference mark')
+    is_phased = Cpt(PytmcSignal, ':PLC:chanState:bIsPhased', io='i', kind='omitted', doc='Is phased')
+    positioner_fault = Cpt(PytmcSignal, ':PLC:chanState:bPositionerFault', io='i', kind='omitted', doc='Positioner fault')
+    amp_enabled = Cpt(PytmcSignal, ':PLC:chanState:bAmplifierEnabled', io='i', kind='omitted', doc='Amplifier enabled')
+    in_position = Cpt(PytmcSignal, ':PLC:chanState:bInPosition', io='i', kind='omitted', doc='In position')
+    brake_enabled = Cpt(PytmcSignal, ':PLC:chanState:bBrakeEnabled', io='i', kind='omitted', doc='Brake enabled')
+
+
+# for convenience
+SmaractBeckhoff = SmarActBeckhoff
+
+
 class PI_M824(PVPositionerIsClose):
     """
     class for hexapod PI axis
@@ -1809,6 +1896,7 @@ def _GetMotorClass(basepv):
                    ('PIC', PCDSMotorBase),
                    ('MCS', SmarAct),
                    ('MCS2', SmarAct),
+                   ('MMT', SmarActBeckhoff),
                    ('HEX', PI_M824))
 
     # Search for component type in prefix
@@ -1830,31 +1918,33 @@ def Motor(prefix, **kwargs):
     The prefix is searched for one of the component keys in the table below. If
     none of these are found, by default an `EpicsMotor` will be used.
 
-    +---------------+-------------------------+
-    | Component Key + Python Class            |
-    +===============+=========================+
-    | MMS           | :class:`.IMS`           |
-    +---------------+-------------------------+
-    | CLZ           | :class:`.IMS`           |
-    +---------------+-------------------------+
-    | CLF           | :class:`.IMS`           |
-    +---------------+-------------------------+
-    | MMN           | :class:`.Newport`       |
-    +---------------+-------------------------+
-    | MZM           | :class:`.PMC100`        |
-    +---------------+-------------------------+
-    | MMC           | :class:`.MMC100`        |
-    +---------------+-------------------------+
-    | MMB           | :class:`.BeckhoffAxis`  |
-    +---------------+-------------------------+
-    | PIC           | :class:`.PCDSMotorBase` |
-    +---------------+-------------------------+
-    | MCS           | :class:`.SmarAct`       |
-    +---------------+-------------------------+
-    | MCS2          | :class:`.SmarAct`       |
-    +---------------+-------------------------+
-    | HEX           | :class:`.PI_M824`       |
-    +---------------+-------------------------+
+    +---------------+--------------------------+
+    | Component Key + Python Class             |
+    +===============+==========================+
+    | MMS           | :class:`.IMS`            |
+    +---------------+--------------------------+
+    | CLZ           | :class:`.IMS`            |
+    +---------------+--------------------------+
+    | CLF           | :class:`.IMS`            |
+    +---------------+--------------------------+
+    | MMN           | :class:`.Newport`        |
+    +---------------+--------------------------+
+    | MZM           | :class:`.PMC100`         |
+    +---------------+--------------------------+
+    | MMC           | :class:`.MMC100`         |
+    +---------------+--------------------------+
+    | MMB           | :class:`.BeckhoffAxis`   |
+    +---------------+--------------------------+
+    | PIC           | :class:`.PCDSMotorBase`  |
+    +---------------+--------------------------+
+    | MCS           | :class:`.SmarAct`        |
+    +---------------+--------------------------+
+    | MCS2          | :class:`.SmarAct`        |
+    +---------------+--------------------------+
+    | MMT           | :class:`.SmarActBeckhoff`|
+    +---------------+--------------------------+
+    | HEX           | :class:`.PI_M824`        |
+    +---------------+--------------------------+
 
     Parameters
     ----------
