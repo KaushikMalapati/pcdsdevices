@@ -1926,6 +1926,7 @@ class HE_SATT_Sequence(BaseInterface, Device):
                      doc='Current transmission through all holders.')
     curr_trans_3d = Cpt(PytmcSignal, ':CurTrans3rdOverall', io='i', kind='normal',
                         doc='Current third harmonic transmission through all holders.')
+    trans_error = Cpt(PytmcSignal, ':TransError', io='i', kind='config', doc='Transmission error')
     curr_safe_power = Cpt(PytmcSignal, ':CurSafePowerOverall', io='i', kind='normal',
                           doc='Current overall safe power accounting for attenuation.')
     chosen_filters_active = Cpt(PytmcSignal, ':ChosenFiltersActive', io='i', kind='normal',
@@ -1996,7 +1997,6 @@ class HE_SATT_ConstantThickness_Holder(HE_SATT_FilterHolder):
 
 class HE_SATT(BaseInterface, Device):
     max_beam_power = Cpt(PytmcSignal, ':MaxBeamPower', io='io', kind='config', doc='Max expected beam power')
-    trans_error = Cpt(PytmcSignal, ':TransError', io='i', kind='config', doc='Transmission error')
     sequence = Cpt(HE_SATT_Sequence, ':Seq', kind='normal')
     commands = Cpt(HE_SATT_Commands, '', kind='normal')
     holder1 = Cpt(HE_SATT_ConstantThickness_Holder, ':Holder:01', kind='normal')
@@ -2011,3 +2011,6 @@ class HE_SATT(BaseInterface, Device):
     holder4 = Cpt(HE_SATT_Wedge_Holder, ':Holder:04', kind='normal')
     holder4_axis = Cpt(BeckhoffAxis, ':MMS:03', kind='normal')
     holder4_velo = Cpt(PytmcSignal, ':MMSOOP:03:fVelocity', io='io', kind='normal')
+
+    def __call__(self, transmission):
+        self.commands.requested_trans.put(transmission)

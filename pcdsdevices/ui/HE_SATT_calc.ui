@@ -274,7 +274,7 @@
             <string>ca://${prefix}:Trans</string>
            </property>
            <property name="displayFormat" stdset="0">
-            <enum>PyDMLineEdit::Default</enum>
+            <enum>PyDMLineEdit::Exponential</enum>
            </property>
           </widget>
          </item>
@@ -314,6 +314,9 @@
            <property name="enableRichText" stdset="0">
             <bool>false</bool>
            </property>
+           <property name="displayFormat" stdset="0">
+            <enum>PyDMLabel::Exponential</enum>
+           </property>
           </widget>
          </item>
          <item>
@@ -351,6 +354,9 @@
            </property>
            <property name="enableRichText" stdset="0">
             <bool>false</bool>
+           </property>
+           <property name="displayFormat" stdset="0">
+            <enum>PyDMLabel::Exponential</enum>
            </property>
           </widget>
          </item>
@@ -718,7 +724,7 @@
             <bool>false</bool>
            </property>
            <property name="displayFormat" stdset="0">
-            <enum>PyDMLabel::Default</enum>
+            <enum>PyDMLabel::Exponential</enum>
            </property>
           </widget>
          </item>
@@ -1267,6 +1273,9 @@
            <property name="enableRichText" stdset="0">
             <bool>false</bool>
            </property>
+           <property name="displayFormat" stdset="0">
+            <enum>PyDMLabel::Exponential</enum>
+           </property>
           </widget>
          </item>
         </layout>
@@ -1330,7 +1339,7 @@
             <bool>false</bool>
            </property>
            <property name="displayFormat" stdset="0">
-            <enum>PyDMLabel::Default</enum>
+            <enum>PyDMLabel::Exponential</enum>
            </property>
           </widget>
          </item>
