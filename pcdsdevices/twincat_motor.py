@@ -5,7 +5,7 @@ from typing import Callable, ClassVar, Optional
 from ophyd.device import Component as Cpt
 from ophyd.device import required_for_connection
 from ophyd.pv_positioner import PVPositioner
-from ophyd.signal import EpicsSignal
+from ophyd.signal import EpicsSignal, EpicsSignalRO
 from ophyd.status import MoveStatus
 from ophyd.status import wait as status_wait
 from ophyd.utils.epics_pvs import (AlarmSeverity, fmt_time,
@@ -79,7 +79,7 @@ class TwinCATMotorInterface(FltMvInterface, PVPositioner):
     negative_dir_enabled = Cpt(PytmcSignal, "bNegativeMotionIsEnabled", io="i", kind="normal", auto_monitor=True)
     positive_dir_enabled = Cpt(PytmcSignal, "bPositiveMotionIsEnabled", io="i", kind="normal", auto_monitor=True)
     command = Cpt(PytmcSignal, "eCommand", io="i", kind="normal", auto_monitor=True)
-    motor_egu = Cpt(PytmcSignal, "sEGU", io="i", kind="normal", auto_monitor=True)
+    motor_egu = Cpt(EpicsSignalRO, "EGU", kind="normal", auto_monitor=True)
 
     # Limits (configuration)
     low_limit_travel = Cpt(EpicsSignal, 'NC:MinPos:Val_RBV', write_pv='NC:MinPos:Goal', kind='config', auto_monitor=True)
