@@ -1924,8 +1924,8 @@ class HE_SATT_Sequence(BaseInterface, Device):
                 doc='Current solid attenuator sequence state.', string=True)
     curr_trans = Cpt(PytmcSignal, ':CurTransOverall', io='i', kind='normal',
                      doc='Current transmission through all holders.')
-    curr_trans_3d = Cpt(PytmcSignal, ':CurTrans3rdOverall', io='i', kind='normal',
-                        doc='Current third harmonic transmission through all holders.')
+    curr_trans_3rd = Cpt(PytmcSignal, ':CurTrans3rdOverall', io='i', kind='normal',
+                         doc='Current third harmonic transmission through all holders.')
     trans_error = Cpt(PytmcSignal, ':TransError', io='i', kind='config', doc='Transmission error')
     curr_safe_power = Cpt(PytmcSignal, ':CurSafePowerOverall', io='i', kind='normal',
                           doc='Current overall safe power accounting for attenuation.')
@@ -1996,7 +1996,7 @@ class HE_SATT_ConstantThickness_Holder(HE_SATT_FilterHolder):
 
 
 class HE_SATT(BaseInterface, Device):
-    max_beam_power = Cpt(PytmcSignal, ':MaxBeamPower', io='io', kind='config', doc='Max expected beam power')
+    max_beam_power = Cpt(PytmcSignal, ':MaxBeamPower', io='io', kind='normal', doc='Max expected beam power')
     sequence = Cpt(HE_SATT_Sequence, ':Seq', kind='normal')
     commands = Cpt(HE_SATT_Commands, '', kind='normal')
     holder1 = Cpt(HE_SATT_ConstantThickness_Holder, ':Holder:01', kind='normal')
@@ -2013,4 +2013,24 @@ class HE_SATT(BaseInterface, Device):
     holder4_velo = Cpt(PytmcSignal, ':MMSOOP:03:fVelocity', io='io', kind='normal')
 
     def __call__(self, transmission):
-        self.commands.requested_trans.put(transmission)
+        self.commands.reset.set(1)
+        time.sleep(1)
+        self.commands.requested_trans.set(transmission)
+        time.sleep(1)
+        self.commands.request_trans.set(1)
+        time.sleep(1)
+        self.commands.permit_move.set(1)
+
+    def format_status_info(self, status_info):
+        curr_trans = get_status_float(status_info, 'sequence', 'curr_trans', 'value')
+        curr_trans_3rd = get_status_float(status_info, 'sequence', 'curr_trans_3rd', 'value')
+        requested_trans = get_status_float(status_info, 'commands', 'requested_trans', 'value')
+        curr_safe_power = get_status_float(status_info, 'sequence', 'curr_safe_power', 'value')
+        state = get_status_value(status_info, 'sequence', 'state', 'value')
+        return f"""{self.prefix} Status
+         Current transmission: {curr_trans}
+         Current 3rd harmonic: {curr_trans_3rd}
+         Requested transmission: {requested_trans}
+         Current safe power: {curr_safe_power} [W]
+         State: {state}
+         """
